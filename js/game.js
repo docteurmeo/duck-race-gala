@@ -359,11 +359,27 @@
   }
 
   /* ---------------- Leaderboard ---------------- */
-  var LB_STEP = 70;
-  function buildLeaderboard() {
-    Object.keys(lbRows).forEach(function (id) { if (lbRows[id].timer) clearTimeout(lbRows[id].timer); });
+  var LB_STEP = 70, LB_VISIBLE = 6;
+  function clearLeaderboard() {
     el.lbList.innerHTML = "";
     lbRows = {};
+  }
+  // One persistent row per participant — created once, only re-positioned by rank.
+  function buildLeaderboard() {
+    clearLeaderboard();
+    race.list.forEach(function (p) {
+      var row = document.createElement("div");
+      row.className = "lb-row";
+      row.innerHTML = '<div class="lb-rank"></div>'
+        + '<div class="lb-duck"></div>'
+        + '<div class="lb-info"><div class="lb-name"></div><div class="lb-bar"><i></i></div></div>';
+      row.querySelector(".lb-duck").style.background = p.color;
+      row.querySelector(".lb-name").textContent = p.name;
+      row.style.transform = "translateY(" + (LB_VISIBLE * LB_STEP) + "px)";
+      row.style.opacity = "0";
+      el.lbList.appendChild(row);
+      lbRows[p.id] = row;
+    });
   }
   function updateLeaderboard(force) {
     var now = performance.now();
@@ -371,47 +387,22 @@
     lastLbUpdate = now;
 
     var order = race.ducks.slice().sort(function (a, b) { return b.prog - a.prog; });
-    var top = order.slice(0, 6);
-    var keep = {};
-
-    for (var i = 0; i < top.length; i++) {
-      var d = top[i], id = d.p.id; keep[id] = true;
-      var rec = lbRows[id];
-      if (!rec) {
-        var row = document.createElement("div");
-        row.className = "lb-row";
-        row.innerHTML = '<div class="lb-rank"></div>'
-          + '<div class="lb-duck"></div>'
-          + '<div class="lb-info"><div class="lb-name"></div><div class="lb-bar"><i></i></div></div>';
-        el.lbList.appendChild(row);
-        rec = lbRows[id] = { el: row, fading: false, timer: 0 };
+    for (var i = 0; i < order.length; i++) {
+      var d = order[i], row = lbRows[d.p.id];
+      if (!row) continue;
+      if (i < LB_VISIBLE) {
+        row.querySelector(".lb-rank").textContent = (i + 1);
+        row.querySelector(".lb-bar > i").style.width = Math.round(d.prog * 100) + "%";
+        row.classList.toggle("lead", i === 0);
+        row.style.transform = "translateY(" + (i * LB_STEP) + "px)";
+        row.style.opacity = "1";
+        row.style.zIndex = String(LB_VISIBLE - i);
+      } else {
+        row.style.transform = "translateY(" + (LB_VISIBLE * LB_STEP) + "px)";
         row.style.opacity = "0";
-      } else if (rec.fading) {                 // revive a row that was leaving
-        rec.fading = false;
-        if (rec.timer) { clearTimeout(rec.timer); rec.timer = 0; }
+        row.style.zIndex = "0";
       }
-      var e = rec.el;
-      e.querySelector(".lb-rank").textContent = (i + 1);
-      e.querySelector(".lb-duck").style.background = d.p.color;
-      e.querySelector(".lb-name").textContent = d.p.name;
-      e.querySelector(".lb-bar > i").style.width = Math.round(d.prog * 100) + "%";
-      e.classList.toggle("lead", i === 0);
-      e.style.transform = "translateY(" + (i * LB_STEP) + "px)";
-      e.style.opacity = "1";
     }
-    // fade out + remove rows that left top-6 (guarded against duplicates)
-    Object.keys(lbRows).forEach(function (id) {
-      if (keep[id]) return;
-      var rec = lbRows[id];
-      if (rec.fading) return;
-      rec.fading = true;
-      rec.el.style.opacity = "0";
-      rec.el.style.transform = "translateY(" + (6 * LB_STEP) + "px)";
-      rec.timer = setTimeout(function () {
-        if (rec.fading && rec.el.parentNode) rec.el.parentNode.removeChild(rec.el);
-        delete lbRows[id];
-      }, 420);
-    });
   }
 
   /* ---------------- Main loop ---------------- */
@@ -546,7 +537,7 @@
     el.btnStart.disabled = active().length < 2;
     el.btnBackSetup.disabled = false;
     el.idleHint.style.display = "";
-    buildLeaderboard();
+    clearLeaderboard();
     if (AudioEngine) AudioEngine.setIntensity(0);
   }
 
