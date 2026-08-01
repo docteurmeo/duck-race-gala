@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Đua Vịt Proton · Duck Race Gala</title>
+  <meta name="description" content="Trò chơi đua vịt cao cấp cho gala doanh nghiệp — chế độ loại dần, hiệu ứng kịch tính, tối ưu màn hình LED." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app" class="app">
+
+    <!-- ===================== STAGE / SÂN KHẤU ĐUA ===================== -->
+    <main class="stage" id="stage">
+      <!-- Top bar -->
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <!-- Proton omega mark (recreated, white) -->
+            <svg viewBox="0 0 48 48" width="34" height="34">
+              <path fill="currentColor" d="M24 6c8.8 0 15 6.2 15 14.6 0 5.9-3.1 10.8-8.4 13.2l1.9 5.2H30l-1.3-3.7c-1.5.4-3 .6-4.7.6s-3.2-.2-4.7-.6L18 45h-2.5l1.9-5.2C12.1 37.4 9 32.5 9 26.6 9 18.2 15.2 6 24 6zm0 5.4c-5.4 0-9.4 4.6-9.4 11 0 6.5 4 11 9.4 11s9.4-4.5 9.4-11c0-6.4-4-11-9.4-11z"/>
+              <path fill="currentColor" d="M24 13.6c1 0 1.8.8 1.8 1.8v2.2h2.2a1.8 1.8 0 1 1 0 3.6h-2.2v2.2a1.8 1.8 0 1 1-3.6 0v-2.2H20a1.8 1.8 0 1 1 0-3.6h2.2v-2.2c0-1 .8-1.8 1.8-1.8z"/>
+            </svg>
+          </span>
+          <div class="brand-text">
+            <span class="brand-title">Đua Vịt</span>
+            <span class="brand-sub">Proton Gala</span>
+          </div>
+        </div>
+
+        <div class="round-info">
+          <div class="round-badge"><span class="round-label">Vòng</span><span id="roundNum" class="round-value">1</span></div>
+          <div class="round-badge alt"><span class="round-label">Còn lại</span><span id="remainCount" class="round-value">0</span></div>
+        </div>
+
+        <div class="winners-strip" id="winnersStrip" aria-label="Bảng vàng"></div>
+
+        <div class="top-controls">
+          <button class="icon-btn" id="btnRoster" title="Danh sách người chơi">☰</button>
+          <button class="icon-btn" id="btnSound" title="Bật/tắt âm thanh">🔊</button>
+          <button class="icon-btn" id="btnFull" title="Toàn màn hình">⛶</button>
+        </div>
+      </header>
+
+      <!-- Arena -->
+      <section class="arena">
+        <div class="track-wrap">
+          <canvas id="track"></canvas>
+          <!-- Countdown overlay -->
+          <div class="countdown" id="countdown" hidden>
+            <div class="count-num" id="countNum">3</div>
+          </div>
+          <!-- Idle hint -->
+          <div class="idle-hint" id="idleHint">
+            <div class="idle-card">
+              <div class="idle-title">Sẵn sàng cho cuộc đua</div>
+              <div class="idle-sub">Nhấn <b>Bắt đầu</b> để xuất phát vòng đua</div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="leaderboard" id="leaderboard">
+          <div class="lb-head"><span class="lb-dot"></span> DẪN ĐẦU</div>
+          <div class="lb-list" id="lbList"></div>
+        </aside>
+      </section>
+
+      <!-- Action bar -->
+      <footer class="actionbar">
+        <button class="btn btn-ghost" id="btnBackSetup">← Danh sách</button>
+        <button class="btn btn-primary btn-race" id="btnStart">🚀 Bắt đầu cuộc đua</button>
+        <div class="status-text" id="statusText"></div>
+      </footer>
+    </main>
+
+    <!-- ===================== SETUP MODAL ===================== -->
+    <div class="modal-scrim" id="setupScrim">
+      <div class="modal setup-modal" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+        <div class="setup-header">
+          <div>
+            <h2 id="setupTitle">Danh sách người chơi</h2>
+            <p class="setup-desc">Mỗi dòng một tên. Có thể dán trực tiếp từ Excel.</p>
+          </div>
+          <span class="count-pill"><b id="nameCount">0</b> người</span>
+        </div>
+
+        <textarea id="namesInput" class="names-input" spellcheck="false"
+          placeholder="Nguyễn Văn A&#10;Trần Thị B&#10;Lê Văn C&#10;..."></textarea>
+
+        <div class="setup-tools">
+          <button class="btn btn-soft" id="btnSample">Điền mẫu</button>
+          <button class="btn btn-soft" id="btnShuffle">🔀 Xáo trộn</button>
+          <button class="btn btn-soft" id="btnClear">Xoá hết</button>
+        </div>
+
+        <div class="setup-row">
+          <label class="field">
+            <span class="field-label">⏱ Thời lượng mỗi vòng</span>
+            <span class="slider-wrap">
+              <input type="range" id="durationRange" min="4" max="20" step="1" value="9" />
+              <span class="slider-val"><b id="durationVal">9</b>s</span>
+            </span>
+          </label>
+        </div>
+
+        <div class="setup-footer">
+          <button class="btn btn-primary btn-block" id="btnApply">Vào sân đua →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== WINNER MODAL ===================== -->
+    <div class="modal-scrim winner-scrim" id="winnerScrim">
+      <div class="winner-card" role="dialog" aria-modal="true">
+        <div class="winner-glow"></div>
+        <div class="winner-trophy">🏆</div>
+        <div class="winner-kicker" id="winnerKicker">VỀ ĐÍCH · HẠNG 1</div>
+        <div class="winner-name" id="winnerName">—</div>
+        <div class="winner-msg">Xin chúc mừng nhà vô địch!</div>
+        <div class="winner-actions">
+          <button class="btn btn-primary" id="btnEliminate">✓ Loại &amp; Đua tiếp</button>
+          <button class="btn btn-soft" id="btnRematch">↺ Đua lại vòng này</button>
+          <button class="btn btn-ghost" id="btnCloseWinner">Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confetti overlay -->
+    <canvas id="confetti" class="confetti-canvas"></canvas>
+  </div>
+
+  <script src="js/audio.js"></script>
+  <script src="js/confetti.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

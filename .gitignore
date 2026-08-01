@@ -1,0 +1,11 @@
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.log
+
+# Original raw logo upload (canonical copy lives in assets/proton-logo.jpg)
+1785569045533_*.jpg
+
+# Node
+node_modules/
