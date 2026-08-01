@@ -61,6 +61,7 @@
   var lastFrame = 0;
 
   /* ---------------- Utils ---------------- */
+  var TAU = Math.PI * 2, ACC_COUNT = 8, PAT_COUNT = 3;
   function rnd(a, b) { return a + Math.random() * (b - a); }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function lerp(a, b, t) { return a + (b - a) * t; }
@@ -84,6 +85,11 @@
       if (d && d.roster) {
         state.roster = d.roster; state.winners = d.winners || [];
         state.round = d.round || 1; state.duration = d.duration || 9;
+        // backfill pattern/accessory for lists saved before this feature
+        state.roster.forEach(function (p, i) {
+          if (p.acc == null) p.acc = i % ACC_COUNT;
+          if (p.pat == null) p.pat = Math.floor(i / ACC_COUNT) % PAT_COUNT;
+        });
         return true;
       }
     } catch (e) {}
@@ -95,7 +101,11 @@
     var names = text.split("\n").map(function (s) { return s.trim(); }).filter(Boolean);
     var n = names.length;
     state.roster = names.map(function (nm, i) {
-      return { id: uid(), name: nm, color: colorFor(i, n), out: false };
+      return {
+        id: uid(), name: nm, color: colorFor(i, n),
+        acc: i % ACC_COUNT, pat: Math.floor(i / ACC_COUNT) % PAT_COUNT,
+        out: false
+      };
     });
     state.winners = [];
     state.round = 1;
@@ -223,63 +233,155 @@
     ctx.restore();
   }
 
-  function drawDuck(x, y, size, color, bob, leader) {
-    var b = Math.sin(bob) * size * 0.06;
+  // Cute cartoon rubber-duck, tinted by color, with per-duck pattern + accessory.
+  function drawDuck(x, y, size, p, bob, leader) {
+    var s = size;
+    var col = p.color, dark = shade(col, -20), lite = shade(col, 16);
+    var b = Math.sin(bob) * s * 0.08;
     y += b;
     ctx.save();
     ctx.translate(x, y);
 
+    // soft shadow on water
+    ctx.globalAlpha = 0.18; ctx.fillStyle = "#02061c";
+    ctx.beginPath(); ctx.ellipse(0, s * 0.86, s * 0.8, s * 0.2, 0, 0, TAU); ctx.fill();
     // wake
-    ctx.save();
-    ctx.globalAlpha = 0.25; ctx.fillStyle = "#bcd4ff";
-    ctx.beginPath();
-    ctx.ellipse(-size * 0.9, size * 0.35, size * 1.0, size * 0.22, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    ctx.globalAlpha = 0.22; ctx.fillStyle = "#cfe0ff";
+    ctx.beginPath(); ctx.ellipse(-s * 0.7, s * 0.6, s * 1.05, s * 0.24, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
 
     if (leader) {
       ctx.save();
-      ctx.shadowColor = "rgba(255,197,61,0.9)"; ctx.shadowBlur = size * 0.9;
-      ctx.fillStyle = "rgba(255,197,61,0.0)";
-      ctx.beginPath(); ctx.arc(0, 0, size * 0.9, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowColor = "rgba(255,197,61,0.95)"; ctx.shadowBlur = s * 1.1;
+      ctx.strokeStyle = "rgba(255,214,102,0.95)"; ctx.lineWidth = s * 0.13;
+      ctx.beginPath(); ctx.arc(0, s * 0.05, s * 1.04, 0, TAU); ctx.stroke();
       ctx.restore();
     }
 
     // body
-    ctx.fillStyle = color;
-    ctx.strokeStyle = shade(color, -22); ctx.lineWidth = Math.max(1, size * 0.06);
+    ctx.fillStyle = col; ctx.strokeStyle = dark; ctx.lineWidth = Math.max(1, s * 0.05);
+    ctx.beginPath(); ctx.ellipse(0, s * 0.18, s * 0.82, s * 0.64, 0, 0, TAU); ctx.fill();
+    // tail flick
     ctx.beginPath();
-    ctx.ellipse(0, 0, size * 0.78, size * 0.58, 0, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
-
-    // tail
-    ctx.beginPath();
-    ctx.moveTo(-size * 0.6, -size * 0.1);
-    ctx.quadraticCurveTo(-size * 1.1, -size * 0.35, -size * 0.55, size * 0.15);
+    ctx.moveTo(-s * 0.72, s * 0.02);
+    ctx.quadraticCurveTo(-s * 1.16, -s * 0.26, -s * 0.58, s * 0.18);
     ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, s * 0.18, s * 0.82, s * 0.64, 0, 0, TAU); ctx.stroke();
+
+    // pattern (clipped to body)
+    if (s >= 12 && p.pat) {
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(0, s * 0.18, s * 0.82, s * 0.64, 0, 0, TAU); ctx.clip();
+      drawPattern(p.pat, dark, s);
+      ctx.restore();
+    }
+    // belly highlight
+    ctx.globalAlpha = 0.4; ctx.fillStyle = lite;
+    ctx.beginPath(); ctx.ellipse(s * 0.1, s * 0.42, s * 0.48, s * 0.32, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+    // wing
+    ctx.fillStyle = dark;
+    ctx.beginPath(); ctx.ellipse(-s * 0.02, s * 0.22, s * 0.36, s * 0.26, -0.15, 0, TAU); ctx.fill();
 
     // head
-    var hx = size * 0.6, hy = -size * 0.55;
-    ctx.beginPath(); ctx.arc(hx, hy, size * 0.42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
+    var hx = s * 0.46, hy = -s * 0.52, hr = s * 0.52;
+    ctx.fillStyle = col; ctx.strokeStyle = dark;
+    ctx.beginPath(); ctx.arc(hx, hy, hr, 0, TAU); ctx.fill(); ctx.stroke();
+    // cheek blush
+    ctx.fillStyle = "rgba(255,128,128,0.42)";
+    ctx.beginPath(); ctx.arc(hx - s * 0.06, hy + s * 0.2, s * 0.13, 0, TAU); ctx.fill();
+    // eye (big, glossy)
+    ctx.fillStyle = "#14213f";
+    ctx.beginPath(); ctx.arc(hx + s * 0.16, hy - s * 0.04, s * 0.15, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(hx + s * 0.21, hy - s * 0.1, s * 0.055, 0, TAU); ctx.fill();
     // beak
-    ctx.fillStyle = "#ff9f1c";
+    ctx.fillStyle = "#ffb02e"; ctx.strokeStyle = "#e8850c"; ctx.lineWidth = s * 0.03;
     ctx.beginPath();
-    ctx.moveTo(hx + size * 0.32, hy - size * 0.02);
-    ctx.lineTo(hx + size * 0.85, hy + size * 0.05);
-    ctx.lineTo(hx + size * 0.32, hy + size * 0.2);
-    ctx.closePath(); ctx.fill();
+    ctx.moveTo(hx + s * 0.3, hy - s * 0.06);
+    ctx.quadraticCurveTo(hx + s * 0.96, hy - s * 0.02, hx + s * 0.86, hy + s * 0.16);
+    ctx.quadraticCurveTo(hx + s * 0.5, hy + s * 0.26, hx + s * 0.32, hy + s * 0.14);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
 
-    // eye
-    ctx.fillStyle = "#0b1330";
-    ctx.beginPath(); ctx.arc(hx + size * 0.16, hy - size * 0.08, size * 0.09, 0, Math.PI * 2); ctx.fill();
+    if (s >= 12) drawAccessory(p.acc, hx, hy, hr, s);
+    ctx.restore();
+  }
 
-    // wing
-    ctx.fillStyle = shade(color, -12);
-    ctx.beginPath();
-    ctx.ellipse(-size * 0.05, size * 0.05, size * 0.42, size * 0.3, -0.3, 0, Math.PI * 2);
-    ctx.fill();
+  function drawPattern(pat, dk, s) {
+    ctx.fillStyle = dk; ctx.strokeStyle = dk;
+    if (pat === 1) {                       // polka dots
+      var pts = [[-0.38, -0.05], [0.1, 0.28], [-0.08, -0.15], [0.4, 0.02], [-0.46, 0.4], [0.24, 0.58]];
+      for (var i = 0; i < pts.length; i++) {
+        ctx.beginPath(); ctx.arc(pts[i][0] * s, (pts[i][1] + 0.18) * s, s * 0.1, 0, TAU); ctx.fill();
+      }
+    } else if (pat === 2) {                // diagonal stripes
+      ctx.lineWidth = s * 0.13;
+      for (var j = -3; j <= 4; j++) {
+        ctx.beginPath();
+        ctx.moveTo(j * s * 0.34 - s * 0.4, -s);
+        ctx.lineTo(j * s * 0.34 + s * 0.5, s * 1.2);
+        ctx.stroke();
+      }
+    }
+  }
 
+  function drawAccessory(acc, hx, hy, hr, s) {
+    if (!acc) return;                      // 0 = bare head
+    var topY = hy - hr;
+    ctx.save();
+    ctx.lineJoin = "round";
+    if (acc === 1) {                       // party hat
+      ctx.fillStyle = "#ff4d8d";
+      ctx.beginPath();
+      ctx.moveTo(hx - s * 0.32, topY + s * 0.12);
+      ctx.lineTo(hx + s * 0.32, topY + s * 0.12);
+      ctx.lineTo(hx + s * 0.02, topY - s * 0.66);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#ffd34e";
+      ctx.beginPath(); ctx.arc(hx + s * 0.02, topY - s * 0.66, s * 0.1, 0, TAU); ctx.fill();
+    } else if (acc === 2) {                // top hat
+      ctx.fillStyle = "#171c36";
+      ctx.fillRect(hx - s * 0.42, topY, s * 0.84, s * 0.12);
+      ctx.fillRect(hx - s * 0.26, topY - s * 0.58, s * 0.52, s * 0.6);
+      ctx.fillStyle = "#ff4d5e";
+      ctx.fillRect(hx - s * 0.26, topY - s * 0.14, s * 0.52, s * 0.1);
+    } else if (acc === 3) {                // crown
+      ctx.fillStyle = "#ffca3a"; ctx.strokeStyle = "#e0a000"; ctx.lineWidth = s * 0.03;
+      ctx.beginPath();
+      ctx.moveTo(hx - s * 0.34, topY + s * 0.14);
+      ctx.lineTo(hx - s * 0.34, topY - s * 0.24);
+      ctx.lineTo(hx - s * 0.15, topY - s * 0.02);
+      ctx.lineTo(hx, topY - s * 0.34);
+      ctx.lineTo(hx + s * 0.15, topY - s * 0.02);
+      ctx.lineTo(hx + s * 0.34, topY - s * 0.24);
+      ctx.lineTo(hx + s * 0.34, topY + s * 0.14);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else if (acc === 4) {                // bow
+      var bx = hx - s * 0.16, by = topY + s * 0.08;
+      ctx.fillStyle = "#ff5d73";
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - s * 0.26, by - s * 0.17); ctx.lineTo(bx - s * 0.26, by + s * 0.17); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + s * 0.26, by - s * 0.17); ctx.lineTo(bx + s * 0.26, by + s * 0.17); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#ffd34e"; ctx.beginPath(); ctx.arc(bx, by, s * 0.08, 0, TAU); ctx.fill();
+    } else if (acc === 5) {                // sunglasses (side profile)
+      ctx.fillStyle = "#12203f";
+      ctx.beginPath(); ctx.ellipse(hx + s * 0.16, hy - s * 0.03, s * 0.21, s * 0.17, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#12203f"; ctx.lineWidth = s * 0.05;
+      ctx.beginPath(); ctx.moveTo(hx - s * 0.05, hy - s * 0.06); ctx.lineTo(hx - s * 0.32, hy - s * 0.12); ctx.stroke();
+      ctx.strokeStyle = "rgba(255,255,255,0.55)"; ctx.lineWidth = s * 0.035;
+      ctx.beginPath(); ctx.arc(hx + s * 0.16, hy - s * 0.03, s * 0.11, -2.4, -1.5); ctx.stroke();
+    } else if (acc === 6) {                // cap
+      ctx.fillStyle = "#22c55e";
+      ctx.beginPath(); ctx.arc(hx, topY + s * 0.14, s * 0.4, Math.PI, TAU); ctx.fill();
+      ctx.fillRect(hx, topY + s * 0.06, s * 0.5, s * 0.1);
+    } else if (acc === 7) {                // flower
+      var fx = hx - s * 0.26, fy = topY + s * 0.18;
+      ctx.fillStyle = "#ff7ab5";
+      for (var k = 0; k < 5; k++) {
+        var a = k / 5 * TAU;
+        ctx.beginPath(); ctx.arc(fx + Math.cos(a) * s * 0.13, fy + Math.sin(a) * s * 0.13, s * 0.09, 0, TAU); ctx.fill();
+      }
+      ctx.fillStyle = "#ffd34e"; ctx.beginPath(); ctx.arc(fx, fy, s * 0.08, 0, TAU); ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -340,10 +442,12 @@
       var d = race.ducks[i];
       var y = geo.padT + geo.laneH * (d.lane + 0.5);
       var x = geo.padL + d.prog * (geo.finishX - geo.padL);
-      var size = clamp(geo.laneH * 0.36, 7, 46);
+      // Ducks are sized to slightly overlap when lanes are tight, so a big
+      // field still reads as chunky cartoon ducks instead of tiny dots.
+      var size = clamp(geo.laneH * 0.62, 13, 46);
       var racing = state.phase === "running" || state.phase === "finishing" || state.phase === "finished";
       var isLeader = racing && d.p.id === leaderId;
-      drawDuck(x, y, size, d.p.color, d.bob, isLeader);
+      drawDuck(x, y, size, d.p, d.bob, isLeader);
       if (geo.laneH > 16 || cam.s > 1.3 || isLeader) {
         drawNameLabel(d.p.name, x, y, size, geo, isLeader && state.phase === "running");
       }

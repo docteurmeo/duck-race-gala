@@ -7,5 +7,9 @@ Desktop.ini
 # Original raw logo upload (canonical copy lives in assets/proton-logo.jpg)
 1785569045533_*.jpg
 
+# Temp preview renders (dev only)
+/preview*.png
+/logocheck.png
+
 # Node
 node_modules/
