@@ -28,9 +28,21 @@
     btnEliminate: $("btnEliminate"), btnRematch: $("btnRematch"), btnCloseWinner: $("btnCloseWinner")
   };
 
-  var SAMPLE = ["Nguyễn Văn An","Trần Thị Bình","Lê Hoàng Cường","Phạm Thu Dung",
-    "Hoàng Minh Đức","Vũ Thị Hà","Đặng Quốc Huy","Bùi Khánh Linh",
-    "Đỗ Thanh Nam","Ngô Phương Oanh","Dương Tấn Phát","Lý Bảo Trân"];
+  var SAMPLE = [
+    "Nguyễn Văn An","Trần Thị Bình","Lê Hoàng Cường","Phạm Thu Dung","Hoàng Minh Đức",
+    "Vũ Thị Hà","Đặng Quốc Huy","Bùi Khánh Linh","Đỗ Thanh Nam","Ngô Phương Oanh",
+    "Dương Tấn Phát","Lý Bảo Trân","Phan Gia Bảo","Võ Ngọc Hân","Huỳnh Tấn Lộc",
+    "Đinh Thùy Trang","Trương Công Danh","Mai Thị Kim","Cao Đức Thịnh","Lâm Nhật Minh",
+    "Hà Bảo Ngọc","Chu Văn Khánh","Tạ Quang Vinh","Vương Mỹ Linh","Đoàn Hải Đăng",
+    "Lương Thảo My","Trịnh Xuân Bắc","Phùng Thị Loan","Tô Hoài Nam","Đào Duy Anh",
+    "Hồ Ngọc Ánh","Nguyễn Hữu Phước","Trần Gia Hân","Lê Thị Ngân","Phạm Đình Khôi",
+    "Hoàng Yến Nhi","Vũ Đức Toàn","Đặng Thị Mai","Bùi Tiến Dũng","Đỗ Hồng Nhung",
+    "Ngô Quang Huy","Dương Thị Thảo","Lý Minh Quân","Phan Thị Hồng","Võ Thành Long",
+    "Huỳnh Bảo Châu","Đinh Công Thành","Trương Thảo Vy","Mai Anh Tuấn","Cao Thị Lan",
+    "Lâm Gia Huy","Hà Thị Thu","Chu Bảo Nam","Tạ Thị Hằng","Vương Đức Mạnh",
+    "Đoàn Thị Diễm","Lương Chí Cường","Trịnh Thị Ánh","Phùng Gia Khang","Tô Thị Bích",
+    "Đào Minh Tú","Hồ Thanh Tùng","Nguyễn Thị Mỹ Duyên"
+  ];
 
   /* ---------------- State ---------------- */
   var STORE_KEY = "duavit_proton_v1";
