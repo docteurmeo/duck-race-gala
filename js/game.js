@@ -23,6 +23,7 @@
     namesInput: $("namesInput"), nameCount: $("nameCount"),
     btnSample: $("btnSample"), btnShuffle: $("btnShuffle"), btnClear: $("btnClear"),
     btnUpload: $("btnUpload"), fileInput: $("fileInput"), uploadStatus: $("uploadStatus"),
+    modeSelect: $("modeSelect"), brandTitle: $("brandTitle"),
     btnApply: $("btnApply"),
     durationRange: $("durationRange"), durationVal: $("durationVal"),
     winnerName: $("winnerName"), winnerKicker: $("winnerKicker"),
@@ -48,12 +49,19 @@
   /* ---------------- State ---------------- */
   var STORE_KEY = "duavit_proton_v1";
   var state = {
-    roster: [],       // {id, name, color, out:false}
+    roster: [],       // {id, name, color, acc, pat, num, out:false}
     winners: [],      // {name, color}
     round: 1,
     duration: 9,
+    mode: "duck",     // duck | horse
     phase: "idle"     // idle | countdown | running | finishing | finished
   };
+  // saddle-cloth accent colours for horse mode (indexed by acc)
+  var BLANKET = ["#ff5d73", "#ffd34e", "#22c55e", "#3d7bff", "#a855f7", "#ff9f1c", "#ec4899", "#14b8a6"];
+  function sttOf(name, fallback) {
+    var m = String(name).match(/^\s*(\d{1,4})\b/);
+    return m ? m[1] : String(fallback);
+  }
 
   var race = null;    // active round data
   var dpr = 1, W = 0, H = 0;
@@ -76,7 +84,7 @@
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
         roster: state.roster, winners: state.winners,
-        round: state.round, duration: state.duration
+        round: state.round, duration: state.duration, mode: state.mode
       }));
     } catch (e) {}
   }
@@ -86,10 +94,12 @@
       if (d && d.roster) {
         state.roster = d.roster; state.winners = d.winners || [];
         state.round = d.round || 1; state.duration = d.duration || 9;
-        // backfill pattern/accessory for lists saved before this feature
+        state.mode = d.mode || "duck";
+        // backfill pattern/accessory/number for lists saved before these features
         state.roster.forEach(function (p, i) {
           if (p.acc == null) p.acc = i % ACC_COUNT;
           if (p.pat == null) p.pat = Math.floor(i / ACC_COUNT) % PAT_COUNT;
+          if (p.num == null) p.num = sttOf(p.name, i + 1);
         });
         return true;
       }
@@ -105,6 +115,7 @@
       return {
         id: uid(), name: nm, color: colorFor(i, n),
         acc: i % ACC_COUNT, pat: Math.floor(i / ACC_COUNT) % PAT_COUNT,
+        num: sttOf(nm, i + 1),
         out: false
       };
     });
@@ -120,9 +131,25 @@
     updateNameCount();
     el.durationRange.value = state.duration;
     el.durationVal.textContent = state.duration;
+    reflectMode();
     el.setupScrim.classList.add("open");
   }
   function closeSetup() { el.setupScrim.classList.remove("open"); }
+
+  /* ---------------- Race mode (duck / horse) ---------------- */
+  function reflectMode() {
+    var opts = el.modeSelect.querySelectorAll(".mode-opt");
+    Array.prototype.forEach.call(opts, function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-mode") === state.mode);
+    });
+    el.brandTitle.textContent = state.mode === "horse" ? "Đua Ngựa" : "Đua Vịt";
+  }
+  function setMode(m) {
+    if (m !== "duck" && m !== "horse" || m === state.mode) return;
+    state.mode = m;
+    save();
+    reflectMode();          // render loop picks up the new sprite next frame
+  }
   function updateNameCount() {
     var n = el.namesInput.value.split("\n").map(function (s) { return s.trim(); }).filter(Boolean).length;
     el.nameCount.textContent = n;
@@ -459,6 +486,93 @@
     ctx.restore();
   }
 
+  function capsule(x1, y1, x2, y2, w, col) {
+    ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+
+  // Cute chibi race horse, tinted by coat colour, with numbered saddle cloth (STT).
+  function drawHorse(x, y, size, p, bob, leader) {
+    var s = size, coat = p.color, mane = shade(coat, -32), dark = shade(coat, -16);
+    var blanket = BLANKET[(p.acc || 0) % BLANKET.length];
+    var num = p.num != null ? p.num : "";
+    var b = Math.sin(bob) * s * 0.07;
+    var S = function (v) { return v * s; };
+    ctx.save();
+    ctx.translate(x, y + b);
+
+    // shadow
+    ctx.globalAlpha = 0.16; ctx.fillStyle = "#02061c";
+    ctx.beginPath(); ctx.ellipse(0, S(1.04), S(0.78), S(0.16), 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    if (leader) {
+      ctx.save();
+      ctx.shadowColor = "rgba(255,197,61,0.95)"; ctx.shadowBlur = s * 1.1;
+      ctx.strokeStyle = "rgba(255,214,102,0.95)"; ctx.lineWidth = s * 0.12;
+      ctx.beginPath(); ctx.ellipse(0, S(0.2), S(1.16), S(0.96), 0, 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
+
+    // tail
+    ctx.fillStyle = mane;
+    ctx.beginPath();
+    ctx.moveTo(S(-0.62), S(-0.02));
+    ctx.quadraticCurveTo(S(-1.15), S(0.05), S(-1.0), S(0.55));
+    ctx.quadraticCurveTo(S(-0.92), S(0.9), S(-0.66), S(0.82));
+    ctx.quadraticCurveTo(S(-0.82), S(0.55), S(-0.7), S(0.3));
+    ctx.quadraticCurveTo(S(-0.6), S(0.12), S(-0.5), S(0.12));
+    ctx.closePath(); ctx.fill();
+    // far legs
+    capsule(S(-0.3), S(0.62), S(-0.34), S(1.02), S(0.2), dark);
+    capsule(S(0.32), S(0.62), S(0.36), S(1.02), S(0.2), dark);
+    // body
+    ctx.fillStyle = coat; ctx.strokeStyle = dark; ctx.lineWidth = Math.max(1, S(0.05));
+    ctx.beginPath(); ctx.ellipse(S(-0.05), S(0.32), S(0.7), S(0.56), 0, 0, TAU); ctx.fill();
+    // near legs + hooves
+    capsule(S(-0.42), S(0.6), S(-0.5), S(1.05), S(0.22), coat);
+    capsule(S(0.5), S(0.6), S(0.58), S(1.05), S(0.22), coat);
+    capsule(S(-0.5), S(0.99), S(-0.5), S(1.06), S(0.24), "#241a2e");
+    capsule(S(0.58), S(0.99), S(0.58), S(1.06), S(0.24), "#241a2e");
+    // saddle blanket + number
+    ctx.fillStyle = blanket; ctx.strokeStyle = "rgba(0,0,0,0.2)"; ctx.lineWidth = Math.max(1, S(0.03));
+    ctx.beginPath(); ctx.moveTo(S(-0.5), S(0.02)); ctx.lineTo(S(0.12), S(0.05)); ctx.lineTo(S(0.06), S(0.5)); ctx.lineTo(S(-0.52), S(0.46)); ctx.closePath(); ctx.fill();
+    if (s >= 11) {
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(S(-0.24), S(0.26), S(0.19), 0, TAU); ctx.fill();
+      ctx.fillStyle = "#14213f"; ctx.font = "800 " + S(0.28) + "px " + fontFamily();
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(num), S(-0.24), S(0.28));
+    }
+    // mane band behind head
+    ctx.fillStyle = mane;
+    ctx.beginPath();
+    ctx.moveTo(S(0.28), S(-0.78));
+    ctx.quadraticCurveTo(S(-0.02), S(-0.5), S(0.02), S(0.05));
+    ctx.quadraticCurveTo(S(0.2), S(-0.15), S(0.24), S(-0.4));
+    ctx.quadraticCurveTo(S(0.34), S(-0.62), S(0.5), S(-0.72));
+    ctx.closePath(); ctx.fill();
+    // head: cheek + muzzle
+    ctx.fillStyle = coat; ctx.strokeStyle = dark; ctx.lineWidth = Math.max(1, S(0.045));
+    ctx.beginPath(); ctx.arc(S(0.62), S(-0.4), S(0.5), 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(S(1.08), S(-0.2), S(0.4), S(0.3), 0.15, 0, TAU); ctx.fill();
+    ctx.fillStyle = shade(coat, 12); ctx.beginPath(); ctx.ellipse(S(1.2), S(-0.14), S(0.24), S(0.19), 0.15, 0, TAU); ctx.fill();
+    ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(S(1.28), S(-0.2), S(0.035), S(0.05), 0.2, 0, TAU); ctx.fill();
+    // ears
+    ctx.fillStyle = coat; ctx.strokeStyle = dark; ctx.lineWidth = Math.max(1, S(0.035));
+    ctx.beginPath(); ctx.moveTo(S(0.3), S(-0.78)); ctx.quadraticCurveTo(S(0.2), S(-1.02), S(0.42), S(-0.86)); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(S(0.62), S(-0.84)); ctx.quadraticCurveTo(S(0.66), S(-1.08), S(0.8), S(-0.82)); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = shade(coat, -14); ctx.beginPath(); ctx.moveTo(S(0.64), S(-0.86)); ctx.quadraticCurveTo(S(0.68), S(-1.0), S(0.76), S(-0.85)); ctx.closePath(); ctx.fill();
+    // forelock
+    ctx.fillStyle = mane; ctx.beginPath(); ctx.moveTo(S(0.4), S(-0.82)); ctx.quadraticCurveTo(S(0.6), S(-0.78), S(0.56), S(-0.5)); ctx.quadraticCurveTo(S(0.48), S(-0.66), S(0.36), S(-0.64)); ctx.closePath(); ctx.fill();
+    // eye
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(S(0.78), S(-0.34), S(0.2), 0, TAU); ctx.fill();
+    ctx.fillStyle = "#14213f"; ctx.beginPath(); ctx.arc(S(0.82), S(-0.32), S(0.14), 0, TAU); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(S(0.87), S(-0.37), S(0.05), 0, TAU); ctx.fill();
+    // blush
+    ctx.fillStyle = "rgba(255,120,120,0.4)"; ctx.beginPath(); ctx.arc(S(0.92), S(-0.16), S(0.12), 0, TAU); ctx.fill();
+
+    ctx.restore();
+  }
+
   function drawNameLabel(text, duckX, y, size, geo, leader) {
     var fs = clamp(geo.laneH * 0.42, 10, 40);
     ctx.save();
@@ -521,7 +635,8 @@
       var size = clamp(geo.laneH * 0.62, 13, 46);
       var racing = state.phase === "running" || state.phase === "finishing" || state.phase === "finished";
       var isLeader = racing && d.p.id === leaderId;
-      drawDuck(x, y, size, d.p, d.bob, isLeader);
+      if (state.mode === "horse") drawHorse(x, y, size, d.p, d.bob, isLeader);
+      else drawDuck(x, y, size, d.p, d.bob, isLeader);
       if (geo.laneH > 16 || cam.s > 1.3 || isLeader) {
         drawNameLabel(d.p.name, x, y, size, geo, isLeader && state.phase === "running");
       }
@@ -788,6 +903,9 @@
     el.btnFull.addEventListener("click", toggleFull);
 
     // setup modal
+    Array.prototype.forEach.call(el.modeSelect.querySelectorAll(".mode-opt"), function (btn) {
+      btn.addEventListener("click", function () { setMode(btn.getAttribute("data-mode")); });
+    });
     el.namesInput.addEventListener("input", updateNameCount);
     el.btnUpload.addEventListener("click", function () { el.fileInput.click(); });
     el.fileInput.addEventListener("change", function (e) {
@@ -852,6 +970,7 @@
 
     var had = load();
     renderMeta();
+    reflectMode();
     resetToIdle();
 
     if (had && state.roster.length >= 2) {

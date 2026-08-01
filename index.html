@@ -22,7 +22,7 @@
             <img src="assets/logo-mark.png" alt="Proton" class="brand-logo" />
           </span>
           <div class="brand-text">
-            <span class="brand-title">Đua Vịt</span>
+            <span class="brand-title" id="brandTitle">Đua Vịt</span>
             <span class="brand-sub">Proton Gala</span>
           </div>
         </div>
@@ -81,6 +81,11 @@
             <p class="setup-desc">Mỗi dòng một tên. Có thể dán trực tiếp từ Excel.</p>
           </div>
           <span class="count-pill"><b id="nameCount">0</b> người</span>
+        </div>
+
+        <div class="mode-select" id="modeSelect">
+          <button class="mode-opt active" data-mode="duck">🦆 Đua Vịt</button>
+          <button class="mode-opt" data-mode="horse">🐴 Đua Ngựa</button>
         </div>
 
         <textarea id="namesInput" class="names-input" spellcheck="false"
