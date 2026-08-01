@@ -341,10 +341,11 @@
       var y = geo.padT + geo.laneH * (d.lane + 0.5);
       var x = geo.padL + d.prog * (geo.finishX - geo.padL);
       var size = clamp(geo.laneH * 0.36, 7, 46);
-      var isLeader = d.p.id === leaderId;
+      var racing = state.phase === "running" || state.phase === "finishing" || state.phase === "finished";
+      var isLeader = racing && d.p.id === leaderId;
       drawDuck(x, y, size, d.p.color, d.bob, isLeader);
       if (geo.laneH > 16 || cam.s > 1.3 || isLeader) {
-        drawNameLabel(d.p.name, x, y, size, geo, isLeader && state.phase !== "running" ? false : isLeader);
+        drawNameLabel(d.p.name, x, y, size, geo, isLeader && state.phase === "running");
       }
     }
     ctx.restore();
@@ -436,6 +437,9 @@
       if (race.u >= 1) finishRace();
     } else if (race && (state.phase === "finishing" || state.phase === "finished")) {
       updateCamera(dt);
+    } else if (race && (state.phase === "idle" || state.phase === "countdown")) {
+      // gentle idle bobbing on the starting grid
+      for (var j = 0; j < race.ducks.length; j++) race.ducks[j].bob += dt * 2.2;
     }
 
     render();
@@ -545,11 +549,15 @@
 
   function resetToIdle() {
     state.phase = "idle";
-    race = null;
     el.btnStart.disabled = active().length < 2;
     el.btnBackSetup.disabled = false;
     el.idleHint.style.display = "";
-    clearLeaderboard();
+    if (active().length >= 2) {
+      buildRace();          // show the starting grid (ducks at the line + finish) while waiting
+    } else {
+      race = null;
+      clearLeaderboard();
+    }
     if (AudioEngine) AudioEngine.setIntensity(0);
   }
 
