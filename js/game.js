@@ -490,6 +490,29 @@
     ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = "round";
     ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
   }
+  // A leg that swings around its hip pivot with the gallop phase (animated stride).
+  function drawLeg(px, py, len, phase, col, w) {
+    var a = 0.5 * Math.sin(phase);
+    var hx = px + Math.sin(a) * len;
+    var hy = py + Math.cos(a) * len;
+    capsule(px, py, hx, hy, w, col);
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(a);
+    ctx.fillStyle = "#241a2e";
+    ctx.beginPath(); ctx.ellipse(0, w * 0.12, w * 0.62, w * 0.42, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  function drawHorsePattern(pat, coat, s) {
+    if (pat === 1) {                          // dapples
+      ctx.fillStyle = shade(coat, 16); ctx.globalAlpha = 0.5;
+      var pts = [[-0.4, 0.16], [-0.12, 0.38], [-0.44, 0.5], [-0.22, 0.1], [0.06, 0.46], [0.14, 0.22]];
+      for (var i = 0; i < pts.length; i++) { ctx.beginPath(); ctx.arc(pts[i][0] * s, pts[i][1] * s, s * 0.1, 0, TAU); ctx.fill(); }
+      ctx.globalAlpha = 1;
+    } else if (pat === 2) {                    // pinto patch (cream)
+      ctx.fillStyle = "#f6ead0";
+      ctx.beginPath(); ctx.ellipse(-0.3 * s, 0.42 * s, 0.4 * s, 0.32 * s, 0.15, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0.06 * s, 0.2 * s, 0.17 * s, 0.14 * s, 0, 0, TAU); ctx.fill();
+    }
+  }
 
   // Cute chibi race horse, tinted by coat colour, with numbered saddle cloth (STT).
   function drawHorse(x, y, size, p, bob, leader) {
@@ -523,17 +546,22 @@
     ctx.quadraticCurveTo(S(-0.82), S(0.55), S(-0.7), S(0.3));
     ctx.quadraticCurveTo(S(-0.6), S(0.12), S(-0.5), S(0.12));
     ctx.closePath(); ctx.fill();
-    // far legs
-    capsule(S(-0.3), S(0.62), S(-0.34), S(1.02), S(0.2), dark);
-    capsule(S(0.32), S(0.62), S(0.36), S(1.02), S(0.2), dark);
+    // far legs (animated gallop — diagonal pairs)
+    drawLeg(S(-0.3), S(0.62), S(0.46), bob, dark, S(0.2));
+    drawLeg(S(0.32), S(0.62), S(0.46), bob + Math.PI, dark, S(0.2));
     // body
     ctx.fillStyle = coat; ctx.strokeStyle = dark; ctx.lineWidth = Math.max(1, S(0.05));
     ctx.beginPath(); ctx.ellipse(S(-0.05), S(0.32), S(0.7), S(0.56), 0, 0, TAU); ctx.fill();
-    // near legs + hooves
-    capsule(S(-0.42), S(0.6), S(-0.5), S(1.05), S(0.22), coat);
-    capsule(S(0.5), S(0.6), S(0.58), S(1.05), S(0.22), coat);
-    capsule(S(-0.5), S(0.99), S(-0.5), S(1.06), S(0.24), "#241a2e");
-    capsule(S(0.58), S(0.99), S(0.58), S(1.06), S(0.24), "#241a2e");
+    // coat pattern (clipped to body)
+    if (s >= 12 && p.pat) {
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(S(-0.05), S(0.32), S(0.7), S(0.56), 0, 0, TAU); ctx.clip();
+      drawHorsePattern(p.pat, coat, s);
+      ctx.restore();
+    }
+    // near legs (animated gallop)
+    drawLeg(S(0.5), S(0.6), S(0.48), bob, coat, S(0.22));
+    drawLeg(S(-0.42), S(0.6), S(0.48), bob + Math.PI, coat, S(0.22));
     // saddle blanket + number
     ctx.fillStyle = blanket; ctx.strokeStyle = "rgba(0,0,0,0.2)"; ctx.lineWidth = Math.max(1, S(0.03));
     ctx.beginPath(); ctx.moveTo(S(-0.5), S(0.02)); ctx.lineTo(S(0.12), S(0.05)); ctx.lineTo(S(0.06), S(0.5)); ctx.lineTo(S(-0.52), S(0.46)); ctx.closePath(); ctx.fill();
@@ -569,6 +597,9 @@
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(S(0.87), S(-0.37), S(0.05), 0, TAU); ctx.fill();
     // blush
     ctx.fillStyle = "rgba(255,120,120,0.4)"; ctx.beginPath(); ctx.arc(S(0.92), S(-0.16), S(0.12), 0, TAU); ctx.fill();
+
+    // accessory on the head (shared with duck mode)
+    if (s >= 12) drawAccessory(p.acc, S(0.62), S(-0.4), S(0.5), s);
 
     ctx.restore();
   }
