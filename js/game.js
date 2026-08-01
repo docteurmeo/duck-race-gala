@@ -26,7 +26,7 @@
     modeSelect: $("modeSelect"), brandTitle: $("brandTitle"),
     btnApply: $("btnApply"),
     durationRange: $("durationRange"), durationVal: $("durationVal"),
-    winnerName: $("winnerName"), winnerKicker: $("winnerKicker"),
+    winnerName: $("winnerName"), winnerKicker: $("winnerKicker"), winnerSprite: $("winnerSprite"),
     btnEliminate: $("btnEliminate"), btnRematch: $("btnRematch"), btnCloseWinner: $("btnCloseWinner")
   };
 
@@ -53,7 +53,7 @@
     winners: [],      // {name, color}
     round: 1,
     duration: 9,
-    mode: "duck",     // duck | horse
+    mode: "horse",    // horse | duck  (horse is the default game)
     phase: "idle"     // idle | countdown | running | finishing | finished
   };
   // saddle-cloth accent colours for horse mode (indexed by acc)
@@ -94,7 +94,7 @@
       if (d && d.roster) {
         state.roster = d.roster; state.winners = d.winners || [];
         state.round = d.round || 1; state.duration = d.duration || 9;
-        state.mode = d.mode || "duck";
+        state.mode = d.mode || "horse";
         // backfill pattern/accessory/number for lists saved before these features
         state.roster.forEach(function (p, i) {
           if (p.acc == null) p.acc = i % ACC_COUNT;
@@ -833,10 +833,26 @@
   /* ---------------- Winner modal ---------------- */
   function showWinner(person) {
     el.winnerName.textContent = person.name;
-    el.winnerKicker.textContent = "VỀ ĐÍCH · HẠNG " + (state.winners.length + 1);
+    el.winnerKicker.textContent = "🏆 VỀ ĐÍCH · HẠNG " + (state.winners.length + 1);
+    drawWinnerSprite(person);
     el.winnerScrim.classList.add("open");
     el.winnerScrim._person = person;
     Confetti.burst(220);
+  }
+  // Draw the winner's own runner (horse/duck) into the popup canvas.
+  function drawWinnerSprite(person) {
+    var cv = el.winnerSprite;
+    var DW = 240, DH = 180, d = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = DW * d; cv.height = DH * d;
+    cv.style.width = DW + "px"; cv.style.height = DH + "px";
+    var prev = ctx;                       // temporarily draw into the popup canvas
+    ctx = cv.getContext("2d");
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+    ctx.clearRect(0, 0, DW, DH);
+    var s = 64;
+    if (state.mode === "horse") drawHorse(DW / 2 - s * 0.15, DH / 2 + s * 0.05, s, person, 1.1, true);
+    else drawDuck(DW / 2 - s * 0.1, DH / 2 + s * 0.15, s, person, 1.1, true);
+    ctx = prev;
   }
   function closeWinner() { el.winnerScrim.classList.remove("open"); }
 

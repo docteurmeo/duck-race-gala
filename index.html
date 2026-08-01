@@ -84,8 +84,8 @@
         </div>
 
         <div class="mode-select" id="modeSelect">
-          <button class="mode-opt active" data-mode="duck">🦆 Đua Vịt</button>
-          <button class="mode-opt" data-mode="horse">🐴 Đua Ngựa</button>
+          <button class="mode-opt active" data-mode="horse">🐴 Đua Ngựa</button>
+          <button class="mode-opt" data-mode="duck">🦆 Đua Vịt</button>
         </div>
 
         <textarea id="namesInput" class="names-input" spellcheck="false"
@@ -120,8 +120,8 @@
     <div class="modal-scrim winner-scrim" id="winnerScrim">
       <div class="winner-card" role="dialog" aria-modal="true">
         <div class="winner-glow"></div>
-        <div class="winner-trophy">🏆</div>
-        <div class="winner-kicker" id="winnerKicker">VỀ ĐÍCH · HẠNG 1</div>
+        <canvas class="winner-sprite" id="winnerSprite"></canvas>
+        <div class="winner-kicker" id="winnerKicker">🏆 VỀ ĐÍCH · HẠNG 1</div>
         <div class="winner-name" id="winnerName">—</div>
         <div class="winner-msg">Xin chúc mừng nhà vô địch!</div>
         <div class="winner-actions">
