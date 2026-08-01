@@ -11,5 +11,9 @@ Desktop.ini
 /preview*.png
 /logocheck.png
 
+# Sensitive / private data — never publish to the public repo
+*.xlsx
+/danh-sach*.txt
+
 # Node
 node_modules/
