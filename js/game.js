@@ -22,6 +22,7 @@
     setupScrim: $("setupScrim"), winnerScrim: $("winnerScrim"),
     namesInput: $("namesInput"), nameCount: $("nameCount"),
     btnSample: $("btnSample"), btnShuffle: $("btnShuffle"), btnClear: $("btnClear"),
+    btnUpload: $("btnUpload"), fileInput: $("fileInput"), uploadStatus: $("uploadStatus"),
     btnApply: $("btnApply"),
     durationRange: $("durationRange"), durationVal: $("durationVal"),
     winnerName: $("winnerName"), winnerKicker: $("winnerKicker"),
@@ -125,6 +126,79 @@
   function updateNameCount() {
     var n = el.namesInput.value.split("\n").map(function (s) { return s.trim(); }).filter(Boolean).length;
     el.nameCount.textContent = n;
+  }
+
+  /* ---------------- File upload (Excel / CSV / TXT) ---------------- */
+  function showUploadStatus(msg, isErr) {
+    el.uploadStatus.hidden = false;
+    el.uploadStatus.textContent = msg;
+    el.uploadStatus.classList.toggle("err", !!isErr);
+  }
+  // detect header/title rows whose "name" cell is actually a label, not a person
+  function isHeaderText(name) {
+    if (/^(stt|số thứ tự|no\.?|họ và tên|họ tên|tên|name|full ?name|giới tính|ngày sinh|phòng|ban|phòng\/ban)$/i.test(name)) return true;
+    if (/danh s[áa]ch/i.test(name)) return true;   // title rows e.g. "DANH SÁCH CHIA PHÒNG…"
+    return false;
+  }
+  function rowsToNames(rows) {
+    var out = [];
+    for (var i = 0; i < rows.length; i++) {
+      var cells = (rows[i] || []).map(function (c) { return c == null ? "" : String(c).trim(); });
+      if (!cells.some(function (c) { return c; })) continue;
+      var stt = null, name = null;
+      for (var j = 0; j < cells.length; j++) {
+        var c = cells[j];
+        if (!c) continue;
+        if (stt === null && /^\d{1,4}(\.0+)?$/.test(c)) { stt = String(parseInt(c, 10)); continue; }
+        if (name === null && /[A-Za-zÀ-ỹ]/.test(c)) name = c;   // first cell containing a letter
+      }
+      if (!name || isHeaderText(name)) continue;                // skip header/title rows
+      out.push(stt !== null ? (stt + " - " + name) : name);
+    }
+    return out;
+  }
+  function loadNamesIntoInput(names, sourceLabel) {
+    el.namesInput.value = names.join("\n");
+    updateNameCount();
+    showUploadStatus("✓ Đã nạp " + names.length + " người" + (sourceLabel ? " từ " + sourceLabel : ""), false);
+  }
+  function handleFile(file) {
+    if (!file) return;
+    var ext = (file.name.split(".").pop() || "").toLowerCase();
+    showUploadStatus("Đang đọc " + file.name + "…", false);
+    var reader = new FileReader();
+    reader.onerror = function () { showUploadStatus("Không đọc được file.", true); };
+
+    if (ext === "csv" || ext === "txt") {
+      reader.onload = function (e) {
+        var lines = String(e.target.result).split(/\r?\n/);
+        var rows = lines.map(function (l) { return l.split(/[,;\t]/); });
+        var names = rowsToNames(rows);
+        if (!names.length) { showUploadStatus("Không tìm thấy tên nào trong file.", true); return; }
+        loadNamesIntoInput(names, file.name);
+      };
+      reader.readAsText(file);
+      return;
+    }
+
+    // Excel (.xlsx/.xls) via SheetJS — pick the sheet yielding the most names
+    if (typeof XLSX === "undefined") { showUploadStatus("Chưa tải được thư viện đọc Excel — thử lại hoặc dùng CSV.", true); return; }
+    reader.onload = function (e) {
+      try {
+        var wb = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+        var best = { names: [], sheet: "" };
+        wb.SheetNames.forEach(function (sn) {
+          var rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, blankrows: false, raw: true });
+          var names = rowsToNames(rows);
+          if (names.length > best.names.length) best = { names: names, sheet: sn };
+        });
+        if (!best.names.length) { showUploadStatus("Không tìm thấy tên nào trong file Excel.", true); return; }
+        loadNamesIntoInput(best.names, "sheet “" + best.sheet + "” (" + file.name + ")");
+      } catch (err) {
+        showUploadStatus("Lỗi đọc Excel: " + err.message, true);
+      }
+    };
+    reader.readAsArrayBuffer(file);
   }
 
   /* ---------------- Canvas sizing ---------------- */
@@ -715,6 +789,12 @@
 
     // setup modal
     el.namesInput.addEventListener("input", updateNameCount);
+    el.btnUpload.addEventListener("click", function () { el.fileInput.click(); });
+    el.fileInput.addEventListener("change", function (e) {
+      var f = e.target.files && e.target.files[0];
+      handleFile(f);
+      el.fileInput.value = "";   // allow re-selecting the same file
+    });
     el.btnSample.addEventListener("click", function () {
       el.namesInput.value = SAMPLE.join("\n"); updateNameCount();
     });
@@ -801,7 +881,8 @@
       for (var i = 0; i < race.ducks.length; i++) race.ducks[i].prog = progressAt(race.ducks[i], race.u);
       updateLeaderboard(true); render();
     },
-    _finish: finishRace
+    _finish: finishRace,
+    _handleFile: handleFile
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
